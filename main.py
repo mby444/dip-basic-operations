@@ -32,7 +32,7 @@ def save_histogram_comparison(img_before, img_after, name, label_before="Sebelum
     axes[0, 1].set_title(f"Citra {label_after}")
 
     # Baris 2: Histogram
-    if len(img_before.shape) == 2: # Citra Grayscale
+    if len(img_before.shape) == 2: # Citra Grayscale/Biner
         axes[1, 0].hist(img_before.ravel(), 256, [0, 256], color='black')
         axes[1, 1].hist(img_after.ravel(), 256, [0, 256], color='black')
     else: # Citra Berwarna (RGB)
@@ -51,7 +51,7 @@ def save_histogram_comparison(img_before, img_after, name, label_before="Sebelum
     print(f"   [Saved Hist]  {path}")
 
 # ==========================================
-# FUNGSI OPERASI (Sesuai Tugas)
+# 1. OPERASI TITIK
 # ==========================================
 def convert_to_grayscale(img_rgb, method='luminance'):
     M, N = img_rgb.shape[:2]
@@ -60,20 +60,27 @@ def convert_to_grayscale(img_rgb, method='luminance'):
         for j in range(N):
             R, G, B = img_rgb[i, j].astype(float)
             if method == 'average':
-                # [cite_start]Metode rata-rata: (R + G + B)/3 [cite: 16]
                 gray[i, j] = (R + G + B) / 3 
             else:
-                # [cite_start]Metode luminance: 0.299R + 0.587G + 0.114B [cite: 17]
                 gray[i, j] = (0.299 * R) + (0.587 * G) + (0.114 * B) 
     return gray
 
-def adjust_brightness(img, b):
-    M, N = img.shape[:2]
-    res = np.zeros_like(img)
+def adjust_negative(img_rgb):
+    M, N, C = img_rgb.shape
+    res = np.zeros_like(img_rgb)
     for i in range(M):
         for j in range(N):
-            # [cite_start]f(x,y)' = f(x,y) + b [cite: 19]
-            res[i, j] = np.clip(img[i, j].astype(int) + b, 0, 255) 
+            for c in range(C):
+                res[i, j, c] = 255 - img_rgb[i, j, c] 
+    return res
+
+def adjust_brightness(img_rgb, b):
+    M, N, C = img_rgb.shape
+    res = np.zeros_like(img_rgb)
+    for i in range(M):
+        for j in range(N):
+            for c in range(C):
+                res[i, j, c] = np.clip(int(img_rgb[i, j, c]) + b, 0, 255) 
     return res
 
 def apply_threshold(gray_img, threshold):
@@ -81,14 +88,31 @@ def apply_threshold(gray_img, threshold):
     biner = np.zeros((M, N), dtype=np.uint8)
     for i in range(M):
         for j in range(N):
-            # [cite_start]Thresholding biner [cite: 20]
             biner[i, j] = 255 if gray_img[i, j] > threshold else 0 
     return biner
 
+# ==========================================
+# 2. OPERASI ARITMATIKA
+# ==========================================
+def arithmetic_ops(img1, img2, scalar=1.5):
+    M, N, C = img1.shape
+    add = np.zeros_like(img1)
+    sub = np.zeros_like(img1)
+    mul = np.zeros_like(img1)
+    for i in range(M):
+        for j in range(N):
+            for c in range(C):
+                add[i, j, c] = np.clip(int(img1[i, j, c]) + int(img2[i, j, c]), 0, 255) 
+                sub[i, j, c] = np.clip(int(img1[i, j, c]) - int(img2[i, j, c]), 0, 255) 
+                mul[i, j, c] = np.clip(img1[i, j, c] * scalar, 0, 255) 
+    return add, sub, mul
+
+# ==========================================
+# 3. OPERASI LOKAL (FILTERING)
+# ==========================================
 def mean_filter_3x3(gray_img):
     M, N = gray_img.shape
     res = np.zeros_like(gray_img)
-    # [cite_start]Mask 1/9 untuk mean filter [cite: 26]
     padded = np.pad(gray_img, ((1, 1), (1, 1)), mode='constant')
     for i in range(M):
         for j in range(N):
@@ -97,64 +121,89 @@ def mean_filter_3x3(gray_img):
     return res
 
 # ==========================================
+# 4. OPERASI BOOLEAN
+# ==========================================
+def boolean_ops(bin1, bin2):
+    # AND, OR, NOT menggunakan fungsi bitwise OpenCV 
+    op_and = cv2.bitwise_and(bin1, bin2)
+    op_or = cv2.bitwise_or(bin1, bin2)
+    op_not = cv2.bitwise_not(bin1)
+    return op_and, op_or, op_not
+
+# ==========================================
+# 5. IMAGE BLENDING
+# ==========================================
+def blend_images(img1, img2, alpha):
+    # O = αI1 + (1-α)I2 
+    return (alpha * img1 + (1 - alpha) * img2).astype(np.uint8)
+
+# ==========================================
 # MAIN EXECUTION
 # ==========================================
 def main():
-    print("--- Memulai Skrip Pemrosesan Citra + Histogram ---")
+    print("--- Memulai Skrip Pemrosesan Citra Lengkap ---")
     start_total = time.time()
-    
-    # Definisi direktori tujuan
-    proc_dir = 'hasil_output'       # Untuk file gambar hasil
-    bonus_dir = 'hasil_output_bonus' # Untuk file histogram bonus
+    proc_dir = 'hasil_output'
+    bonus_dir = 'hasil_output_bonus'
 
-    # 1. Load & Resize
-    # Pastikan file image1.jpg tersedia di folder yang sama
+    # Load & Pre-processing
     img1 = cv2.cvtColor(cv2.imread('image1.jpg'), cv2.COLOR_BGR2RGB)
-    img1 = cv2.resize(img1, (400, 300)) # Resize agar loop manual lebih cepat
-    save_image(img1, "00_original", proc_dir)
+    img2 = cv2.cvtColor(cv2.imread('image2.jpg'), cv2.COLOR_BGR2RGB)
+    img1 = cv2.resize(img1, (400, 300))
+    img2 = cv2.resize(img2, (400, 300))
+    save_image(img1, "00_original_1", proc_dir)
+    save_image(img2, "00_original_2", proc_dir)
 
-    # [cite_start]2. Grayscale & Histogram (Analisis Luminance vs Average) [cite: 38]
-    print("[1/4] Memproses Grayscale & Histogram...")
+    # 1. Operasi Titik
+    print("[1/5] Memproses Operasi Titik...")
     g_avg = convert_to_grayscale(img1, 'average')
     g_lum = convert_to_grayscale(img1, 'luminance')
-    
-    # Simpan gambar hasil pemrosesan
-    save_image(g_avg, "01_gray_average", proc_dir)
-    save_image(g_lum, "02_gray_luminance", proc_dir)
-    # Simpan histogram perbandingan di folder bonus
-    save_histogram_comparison(g_avg, g_lum, "grayscale_comp", "Average", "Luminance", folder=bonus_dir)
+    negatif = adjust_negative(img1)
+    bright_pos = adjust_brightness(img1, 50)
+    bright_neg = adjust_brightness(img1, -50)
+    bin_100 = apply_threshold(g_lum, 100)
+    bin_180 = apply_threshold(g_lum, 180)
 
-    # [cite_start]3. Brightness & Histogram [cite: 39]
-    print("[2/4] Memproses Brightness & Histogram...")
-    img_bright = adjust_brightness(img1, 60)
+    save_image(g_avg, "01a_grayscale_average", proc_dir)
+    save_image(g_lum, "01a_grayscale_luminance", proc_dir)
+    save_image(negatif, "01b_negatif", proc_dir)
+    save_image(bright_pos, "01c_brightness_pos", proc_dir)
+    save_image(bright_neg, "01c_brightness_neg", proc_dir)
+    save_image(bin_100, "01d_threshold_100", proc_dir)
+    save_image(bin_180, "01d_threshold_180", proc_dir)
     
-    # Simpan gambar hasil pemrosesan
-    save_image(img_bright, "03_brightness_plus_60", proc_dir)
-    # Simpan histogram perbandingan di folder bonus
-    save_histogram_comparison(img1, img_bright, "brightness", "Original", "Bright (+60)", folder=bonus_dir)
+    # Histogram Bonus Operasi Titik
+    save_histogram_comparison(g_avg, g_lum, "1_grayscale", "Avg", "Lum", bonus_dir)
+    save_histogram_comparison(img1, bright_pos, "2_brightness", "Original", "Bright", bonus_dir)
 
-    # [cite_start]4. Thresholding & Histogram [cite: 20]
-    print("[3/4] Memproses Thresholding...")
-    bin_127 = apply_threshold(g_lum, 127)
-    
-    # Simpan gambar hasil pemrosesan
-    save_image(bin_127, "04_threshold_127", proc_dir)
-    # Simpan histogram perbandingan di folder bonus
-    save_histogram_comparison(g_lum, bin_127, "thresholding", "Grayscale", "Biner (T=127)", folder=bonus_dir)
+    # 2. Operasi Aritmatika
+    print("[2/5] Memproses Operasi Aritmatika...")
+    add, sub, mul = arithmetic_ops(img1, img2, scalar=1.5)
+    save_image(add, "02a_aritmatika_penjumlahan", proc_dir)
+    save_image(sub, "02b_aritmatika_pengurangan", proc_dir)
+    save_image(mul, "02c_aritmatika_perkalian_skalar", proc_dir)
 
-    # [cite_start]5. Filtering (Lokal) [cite: 40]
-    print("[4/4] Memproses Filtering...")
+    # 3. Operasi Lokal
+    print("[3/5] Memproses Operasi Lokal (Filtering)...")
     filtered = mean_filter_3x3(g_lum)
-    
-    # Simpan gambar hasil pemrosesan
-    save_image(filtered, "05_mean_filtered", proc_dir)
-    # Simpan histogram perbandingan di folder bonus
-    save_histogram_comparison(g_lum, filtered, "filtering", "Grayscale_Original", "Filtered", folder=bonus_dir)
+    save_image(filtered, "03_mean_filter_3x3", proc_dir)
+    save_histogram_comparison(g_lum, filtered, "3_filtering", "Sebelum", "Sesudah", bonus_dir) 
 
-    print(f"\n--- Selesai! ---")
-    print(f"Gambar hasil di: '{proc_dir}'")
-    print(f"Histogram bonus di: '{bonus_dir}'")
-    print(f"Total waktu: {time.time() - start_total:.2f} detik")
+    # 4. Operasi Boolean
+    print("[4/5] Memproses Operasi Boolean...")
+    b_and, b_or, b_not = boolean_ops(bin_100, bin_180)
+    save_image(b_and, "04a_boolean_AND", proc_dir)
+    save_image(b_or, "04b_boolean_OR", proc_dir)
+    save_image(b_not, "04c_boolean_NOT", proc_dir)
+
+    # 5. Image Blending
+    print("[5/5] Memproses Image Blending...")
+    alphas = [0.3, 0.5, 0.7] 
+    for a in alphas:
+        blended = blend_images(img1, img2, a)
+        save_image(blended, f"05_blending_alpha_{a}", proc_dir)
+
+    print(f"\n--- Selesai! Total waktu: {time.time() - start_total:.2f} detik ---")
 
 if __name__ == "__main__":
     main()
