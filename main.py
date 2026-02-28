@@ -124,10 +124,26 @@ def mean_filter_3x3(gray_img):
 # 4. OPERASI BOOLEAN
 # ==========================================
 def boolean_ops(bin1, bin2):
-    # AND, OR, NOT menggunakan fungsi bitwise OpenCV 
-    op_and = cv2.bitwise_and(bin1, bin2)
-    op_or = cv2.bitwise_or(bin1, bin2)
-    op_not = cv2.bitwise_not(bin1)
+    M, N = bin1.shape
+
+    op_and = np.zeros((M, N), dtype=np.uint8)
+    op_or = np.zeros((M, N), dtype=np.uint8)
+    op_not = np.zeros((M, N), dtype=np.uint8)
+    
+    for i in range(M):
+        for j in range(N):
+            if bin1[i, j] == 255 and bin2[i, j] == 255:
+                op_and[i, j] = 255
+            else:
+                op_and[i, j] = 0
+            
+            if bin1[i, j] == 255 or bin2[i, j] == 255:
+                op_or[i, j] = 255
+            else:
+                op_or[i, j] = 0
+            
+            op_not[i, j] = 255 - bin1[i, j]
+            
     return op_and, op_or, op_not
 
 # ==========================================
