@@ -8,6 +8,7 @@ import os
 # FUNGSI HELPER PENYIMPANAN & HISTOGRAM
 # ==========================================
 def save_image(img, name, folder='hasil_output'):
+    """Menyimpan gambar hasil pemrosesan ke folder hasil_output"""
     if not os.path.exists(folder):
         os.makedirs(folder)
     
@@ -17,6 +18,7 @@ def save_image(img, name, folder='hasil_output'):
     print(f"   [Saved Image] {path}")
 
 def save_histogram_comparison(img_before, img_after, name, label_before="Sebelum", label_after="Sesudah", folder='hasil_output_bonus'):
+    """Membuat plot perbandingan citra dan histogram yang mendukung mix RGB & Grayscale"""
     if not os.path.exists(folder):
         os.makedirs(folder)
 
@@ -123,17 +125,23 @@ def boolean_ops(bin1, bin2):
     op_and = np.zeros((M, N), dtype=np.uint8)
     op_or = np.zeros((M, N), dtype=np.uint8)
     op_not = np.zeros((M, N), dtype=np.uint8)
+    
     for i in range(M):
         for j in range(N):
+            # AND: Putih jika keduanya putih 
             op_and[i, j] = 255 if bin1[i, j] == 255 and bin2[i, j] == 255 else 0
+            # OR: Putih jika salah satu putih 
             op_or[i, j] = 255 if bin1[i, j] == 255 or bin2[i, j] == 255 else 0
+            # NOT: Inversi citra 1 
             op_not[i, j] = 255 - bin1[i, j]
+            
     return op_and, op_or, op_not
 
 # ==========================================
 # 5. IMAGE BLENDING
 # ==========================================
 def blend_images(img1, img2, alpha):
+    # O = alpha*I1 + (1-alpha)*I2 
     return (alpha * img1 + (1 - alpha) * img2).astype(np.uint8)
 
 # ==========================================
@@ -155,31 +163,42 @@ def main():
 
     # 1. Operasi Titik
     print("[1/5] Memproses Operasi Titik...")
-    g_avg = convert_to_grayscale(img1, 'average')
-    g_lum = convert_to_grayscale(img1, 'luminance')
+    g_avg1 = convert_to_grayscale(img1, 'average')
+    g_lum1 = convert_to_grayscale(img1, 'luminance')
+    g_lum2 = convert_to_grayscale(img2, 'luminance')
+    
     negatif = adjust_negative(img1)
     bright_pos = adjust_brightness(img1, 50)
     bright_neg = adjust_brightness(img1, -50)
-    bin_100 = apply_threshold(g_lum, 100)
-    bin_180 = apply_threshold(g_lum, 180)
+    
+    # Thresholding untuk kedua gambar guna keperluan Boolean
+    bin1_100 = apply_threshold(g_lum1, 100) # Threshold Gambar 1
+    bin2_100 = apply_threshold(g_lum2, 100) # Threshold Gambar 2
+    bin1_180 = apply_threshold(g_lum1, 180) # Variasi Threshold Gambar 1
+    bin2_180 = apply_threshold(g_lum2, 180) # Variasi Threshold Gambar 2
 
-    save_image(g_avg, "01a_grayscale_average", proc_dir)
-    save_image(g_lum, "01a_grayscale_luminance", proc_dir)
+    save_image(g_avg1, "01a_grayscale_avg_img1", proc_dir)
+    save_image(g_lum1, "01a_grayscale_luminance_img1", proc_dir)
     save_image(negatif, "01b_negatif", proc_dir)
     save_image(bright_pos, "01c_brightness_pos", proc_dir)
     save_image(bright_neg, "01c_brightness_neg", proc_dir)
-    save_image(bin_100, "01d_threshold_100", proc_dir)
-    save_image(bin_180, "01d_threshold_180", proc_dir)
+    save_image(bin1_100, "01d_threshold_100_img1", proc_dir)
+    save_image(bin2_100, "01d_threshold_100_img2", proc_dir)
+    save_image(bin1_180, "01d_threshold_180_img1", proc_dir)
+    save_image(bin2_180, "01d_threshold_180_img2", proc_dir)
     
     # Histogram Operasi Titik
-    save_histogram_comparison(img1, g_avg, "01a_grayscale_average", "Original", "Grayscale Average", bonus_dir)
-    save_histogram_comparison(img1, g_lum, "01a_grayscale_luminance", "Original", "Grayscale Luminance", bonus_dir)
-    save_histogram_comparison(g_avg, g_lum, "01a_grayscale_comp", "Avg", "Lum", bonus_dir)
-    save_histogram_comparison(img1, negatif, "01b_negatif", "Original", "Negatif", bonus_dir)
-    save_histogram_comparison(img1, bright_pos, "01c_brightness_pos", "Original", "Bright_Pos", bonus_dir)
-    save_histogram_comparison(img1, bright_neg, "01c_brightness_neg", "Original", "Bright_Neg", bonus_dir)
-    save_histogram_comparison(g_lum, bin_100, "01d_threshold_100", "Gray", "Bin_100", bonus_dir)
-    save_histogram_comparison(g_lum, bin_180, "01d_threshold_180", "Gray", "Bin_180", bonus_dir)
+    save_histogram_comparison(g_avg1, g_lum1, "01a_grayscale_comp", "Average", "Luminance", bonus_dir)
+    save_histogram_comparison(img1, g_avg1, "01a_grayscale_avg", "Original 1", "Gray Average", bonus_dir)
+    save_histogram_comparison(img1, g_lum1, "01a_grayscale_lum", "Original 1", "Gray Luminance", bonus_dir)
+    save_histogram_comparison(img1, negatif, "01b_negatif1", "Original 1", "Negatif 1", bonus_dir)
+    save_histogram_comparison(img2, negatif, "01b_negatif2", "Original 2", "Negatif 2", bonus_dir)
+    save_histogram_comparison(img1, bright_pos, "01c_brightness_pos", "Original 1", "Bright", bonus_dir)
+    save_histogram_comparison(img1, bright_neg, "01c_brightness_neg", "Original 1", "Dark", bonus_dir)
+    save_histogram_comparison(g_lum1, bin1_100, "01d_threshold_100_img1", "Gray 1", "Bin1_100", bonus_dir)
+    save_histogram_comparison(g_lum2, bin2_100, "01d_threshold_100_img2", "Gray 2", "Bin2_100", bonus_dir)
+    save_histogram_comparison(g_lum1, bin1_180, "01d_threshold_180_img1", "Gray 1", "Bin1_180", bonus_dir)
+    save_histogram_comparison(g_lum2, bin2_180, "01d_threshold_180_img2", "Gray 2", "Bin2_180", bonus_dir)
 
     # 2. Operasi Aritmatika
     print("[2/5] Memproses Operasi Aritmatika...")
@@ -188,33 +207,36 @@ def main():
     save_image(sub, "02b_aritmatika_pengurangan", proc_dir)
     save_image(mul, "02c_aritmatika_perkalian_skalar", proc_dir)
     
-    save_histogram_comparison(img1, add, "02a_aritmatika_add", "Img1", "Hasil_Tambah", bonus_dir)
-    save_histogram_comparison(img1, sub, "02b_aritmatika_sub", "Img1", "Hasil_Kurang", bonus_dir)
-    save_histogram_comparison(img1, mul, "02c_aritmatika_mul", "Img1", "Hasil_Kali", bonus_dir)
+    save_histogram_comparison(img1, add, "02a_aritmatika_add", "Img1", "Hasil Tambah", bonus_dir)
+    save_histogram_comparison(img1, sub, "02a_aritmatika_sub", "Img1", "Hasil Kurang", bonus_dir)
+    save_histogram_comparison(img1, mul, "02a_aritmatika_mul", "Img1", "Hasil Kali", bonus_dir)
 
     # 3. Operasi Lokal
     print("[3/5] Memproses Operasi Lokal (Filtering)...")
-    filtered = mean_filter_3x3(g_lum)
+    filtered = mean_filter_3x3(g_lum1)
     save_image(filtered, "03_mean_filter_3x3", proc_dir)
-    save_histogram_comparison(g_lum, filtered, "03_filtering", "Sebelum", "Sesudah", bonus_dir)
+    save_histogram_comparison(g_lum1, filtered, "03_filtering", "Sebelum", "Sesudah", bonus_dir)
 
-    # 4. Operasi Boolean
-    print("[4/5] Memproses Operasi Boolean...")
-    b_and, b_or, b_not = boolean_ops(bin_100, bin_180)
+    # 4. Operasi Boolean (MENGGUNAKAN BIN_100 IMG1 DAN BIN_100 IMG2)
+    print("[4/5] Memproses Operasi Boolean (Img1 vs Img2)...")
+    b_and, b_or, b_not = boolean_ops(bin1_100, bin2_100)
+    
     save_image(b_and, "04a_boolean_AND", proc_dir)
     save_image(b_or, "04b_boolean_OR", proc_dir)
     save_image(b_not, "04c_boolean_NOT", proc_dir)
     
-    save_histogram_comparison(bin_100, b_and, "04a_boolean_AND", "Bin_100", "Hasil_AND", bonus_dir)
-    save_histogram_comparison(bin_100, b_or, "04b_boolean_OR", "Bin_100", "Hasil_OR", bonus_dir)
-    save_histogram_comparison(bin_100, b_not, "04c_boolean_NOT", "Bin_100", "Hasil_NOT", bonus_dir)
+    # Histogram Perbandingan Boolean
+    save_histogram_comparison(bin1_100, b_and, "04a_boolean_AND", "Bin1_100", "Hasil AND", bonus_dir)
+    save_histogram_comparison(bin1_100, b_or, "04b_boolean_OR", "Bin1_100", "Hasil OR", bonus_dir)
+    save_histogram_comparison(bin1_100, b_not, "04c_boolean_NOT", "Bin1_100", "Hasil NOT", bonus_dir)
 
     # 5. Image Blending
     print("[5/5] Memproses Image Blending...")
-    for a in [0.3, 0.5, 0.7]:
+    alphas = [0.3, 0.5, 0.7]
+    for a in alphas:
         blended = blend_images(img1, img2, a)
         save_image(blended, f"05_blending_alpha_{a}", proc_dir)
-        save_histogram_comparison(img1, blended, f"05_blending_alpha_{a}", "Original", f"Blend_{a}", bonus_dir)
+        save_histogram_comparison(img1, blended, f"05_blending_alpha_{a}", "Original 1", f"Blend {a}", bonus_dir)
 
     print(f"\n--- Batch Selesai! Total waktu: {time.time() - start_total:.2f} detik ---")
 
