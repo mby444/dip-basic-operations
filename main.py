@@ -19,31 +19,36 @@ def save_image(img, name, folder='hasil_output'):
     print(f"   [Saved Image] {path}")
 
 def save_histogram_comparison(img_before, img_after, name, label_before="Sebelum", label_after="Sesudah", folder='hasil_output_bonus'):
-    """Membuat dan menyimpan plot perbandingan citra beserta histogramnya ke hasil_output_bonus"""
+    """Membuat plot perbandingan citra dan histogram yang mendukung mix RGB & Grayscale"""
     if not os.path.exists(folder):
         os.makedirs(folder)
 
     fig, axes = plt.subplots(2, 2, figsize=(12, 8))
     
-    # Baris 1: Tampilan Citra
-    axes[0, 0].imshow(img_before, cmap='gray' if len(img_before.shape) == 2 else None)
-    axes[0, 0].set_title(f"Citra {label_before}")
-    axes[0, 1].imshow(img_after, cmap='gray' if len(img_after.shape) == 2 else None)
-    axes[0, 1].set_title(f"Citra {label_after}")
+    def plot_column(img, col_index, label):
+        # 1. Cek apakah citra adalah Grayscale (2 Dimensi) atau RGB (3 Dimensi)
+        is_gray = len(img.shape) == 2
+        
+        # 2. Tampilkan Citra di Baris 0
+        axes[0, col_index].imshow(img, cmap='gray' if is_gray else None)
+        axes[0, col_index].set_title(f"Citra {label}")
 
-    # Baris 2: Histogram
-    if len(img_before.shape) == 2: # Citra Grayscale/Biner
-        axes[1, 0].hist(img_before.ravel(), 256, [0, 256], color='black')
-        axes[1, 1].hist(img_after.ravel(), 256, [0, 256], color='black')
-    else: # Citra Berwarna (RGB)
-        colors = ('red', 'green', 'blue')
-        for i, col in enumerate(colors):
-            axes[1, 0].hist(img_before[:,:,i].ravel(), 256, [0, 256], color=col, alpha=0.5)
-            axes[1, 1].hist(img_after[:,:,i].ravel(), 256, [0, 256], color=col, alpha=0.5)
+        # 3. Tampilkan Histogram di Baris 1
+        if is_gray:
+            # Jika Grayscale: Gunakan satu histogram hitam
+            axes[1, col_index].hist(img.ravel(), 256, [0, 256], color='black')
+        else:
+            # Jika RGB: Loop untuk 3 kanal warna (Red, Green, Blue)
+            colors = ('red', 'green', 'blue')
+            for i, col in enumerate(colors):
+                axes[1, col_index].hist(img[:,:,i].ravel(), 256, [0, 256], color=col, alpha=0.5)
+        
+        axes[1, col_index].set_title(f"Histogram {label}")
 
-    axes[1, 0].set_title(f"Histogram {label_before}")
-    axes[1, 1].set_title(f"Histogram {label_after}")
-    
+    # Jalankan logika untuk gambar 'Sebelum' (Kolom 0) dan 'Sesudah' (Kolom 1)
+    plot_column(img_before, 0, label_before)
+    plot_column(img_after, 1, label_after)
+
     plt.tight_layout()
     path = os.path.join(folder, f"hist_{name}.png")
     plt.savefig(path)
@@ -125,11 +130,9 @@ def mean_filter_3x3(gray_img):
 # ==========================================
 def boolean_ops(bin1, bin2):
     M, N = bin1.shape
-
     op_and = np.zeros((M, N), dtype=np.uint8)
     op_or = np.zeros((M, N), dtype=np.uint8)
     op_not = np.zeros((M, N), dtype=np.uint8)
-    
     for i in range(M):
         for j in range(N):
             if bin1[i, j] == 255 and bin2[i, j] == 255:
@@ -188,9 +191,15 @@ def main():
     save_image(bin_100, "01d_threshold_100", proc_dir)
     save_image(bin_180, "01d_threshold_180", proc_dir)
     
-    # Histogram Bonus Operasi Titik
-    save_histogram_comparison(g_avg, g_lum, "1_grayscale", "Avg", "Lum", bonus_dir)
-    save_histogram_comparison(img1, bright_pos, "2_brightness", "Original", "Bright", bonus_dir)
+    # Histogram Operasi Titik
+    save_histogram_comparison(img1, g_avg, "01a_grayscale_average", "Original", "Grayscale Average", bonus_dir)
+    save_histogram_comparison(img1, g_lum, "01a_grayscale_luminance", "Original", "Grayscale Luminance", bonus_dir)
+    save_histogram_comparison(g_avg, g_lum, "01a_grayscale_comp", "Avg", "Lum", bonus_dir)
+    save_histogram_comparison(img1, negatif, "01b_negatif", "Original", "Negatif", bonus_dir)
+    save_histogram_comparison(img1, bright_pos, "01c_brightness_pos", "Original", "Bright_Pos", bonus_dir)
+    save_histogram_comparison(img1, bright_neg, "01c_brightness_neg", "Original", "Bright_Neg", bonus_dir)
+    save_histogram_comparison(g_lum, bin_100, "01d_threshold_100", "Gray", "Bin_100", bonus_dir)
+    save_histogram_comparison(g_lum, bin_180, "01d_threshold_180", "Gray", "Bin_180", bonus_dir)
 
     # 2. Operasi Aritmatika
     print("[2/5] Memproses Operasi Aritmatika...")
@@ -198,12 +207,17 @@ def main():
     save_image(add, "02a_aritmatika_penjumlahan", proc_dir)
     save_image(sub, "02b_aritmatika_pengurangan", proc_dir)
     save_image(mul, "02c_aritmatika_perkalian_skalar", proc_dir)
+    
+    # Histogram Operasi Aritmatika
+    save_histogram_comparison(img1, add, "02a_aritmatika_add", "Img1", "Hasil_Tambah", bonus_dir)
+    save_histogram_comparison(img1, sub, "02b_aritmatika_sub", "Img1", "Hasil_Kurang", bonus_dir)
+    save_histogram_comparison(img1, mul, "02c_aritmatika_mul", "Img1", "Hasil_Kali", bonus_dir)
 
     # 3. Operasi Lokal
     print("[3/5] Memproses Operasi Lokal (Filtering)...")
     filtered = mean_filter_3x3(g_lum)
     save_image(filtered, "03_mean_filter_3x3", proc_dir)
-    save_histogram_comparison(g_lum, filtered, "3_filtering", "Sebelum", "Sesudah", bonus_dir) 
+    save_histogram_comparison(g_lum, filtered, "03_filtering", "Sebelum", "Sesudah", bonus_dir)
 
     # 4. Operasi Boolean
     print("[4/5] Memproses Operasi Boolean...")
@@ -211,15 +225,21 @@ def main():
     save_image(b_and, "04a_boolean_AND", proc_dir)
     save_image(b_or, "04b_boolean_OR", proc_dir)
     save_image(b_not, "04c_boolean_NOT", proc_dir)
+    
+    # Histogram Operasi Boolean
+    save_histogram_comparison(bin_100, b_and, "04a_boolean_AND", "Bin_100", "Hasil_AND", bonus_dir)
+    save_histogram_comparison(bin_100, b_or, "04b_boolean_OR", "Bin_100", "Hasil_OR", bonus_dir)
+    save_histogram_comparison(bin_100, b_not, "04c_boolean_NOT", "Bin_100", "Hasil_NOT", bonus_dir)
 
     # 5. Image Blending
     print("[5/5] Memproses Image Blending...")
-    alphas = [0.3, 0.5, 0.7] 
-    for a in alphas:
+    for a in [0.3, 0.5, 0.7]:
         blended = blend_images(img1, img2, a)
         save_image(blended, f"05_blending_alpha_{a}", proc_dir)
+        save_histogram_comparison(img1, blended, f"05_blending_alpha_{a}", "Original", f"Blend_{a}", bonus_dir)
 
-    print(f"\n--- Selesai! Total waktu: {time.time() - start_total:.2f} detik ---")
+    print(f"\n--- Selesai! Cek folder '{proc_dir}' dan '{bonus_dir}' ---")
+    print(f"Total waktu: {time.time() - start_total:.2f} detik")
 
 if __name__ == "__main__":
     main()
